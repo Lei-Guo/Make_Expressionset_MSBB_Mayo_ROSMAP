@@ -1,0 +1,134 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Rscript -e "rmarkdown::render('Make_expressionset.Rmd')"
+
+Loading packages
+```{r loading packages, message = F, warning = F}
+library(wrapr)
+library(data.table)
+library(Biobase)
+rm(list=ls())
+```
+
+
+
+Reading gene expression values for brain regions
+```{r Reading gene expression values for brain regions}
+# BM10
+expr_bm10 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.BM_10.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.tsv", data.table = F)
+row.names(expr_bm10) <- expr_bm10[[1]]
+fdata_bm10 <- expr_bm10[, c(1, 2)]
+expr_bm10 <- expr_bm10[, -c(1, 2)]
+
+# BM22
+expr_bm22 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.BM_22.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.tsv", data.table = F)
+row.names(expr_bm22) <- expr_bm22[[1]]
+fdata_bm22 <- expr_bm22[, c(1, 2)]
+expr_bm22 <- expr_bm22[, -c(1, 2)]
+
+# BM36
+expr_bm36 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.BM_36.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.tsv", data.table = F)
+row.names(expr_bm36) <- expr_bm36[[1]]
+fdata_bm36 <- expr_bm36[, c(1, 2)]
+expr_bm36 <- expr_bm36[, -c(1, 2)]
+
+# BM44
+expr_bm44 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.BM_44.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.tsv", data.table = F)
+row.names(expr_bm44) <- expr_bm44[[1]]
+fdata_bm44 <- expr_bm44[, c(1, 2)]
+expr_bm44 <- expr_bm44[, -c(1, 2)]
+
+# ROSMAP
+expr_ros <- readRDS("/sc/orga/projects/zhangb03a/shared/ROSMAP/Synapse/RNAseq/covariates_adjustment/expression.log2FPKM.batch_pmi_msex_RIN_adj.no_outliers.symbol_clean.RDS")
+
+# Mayo TCX
+expr_mayo_tcx <- fread("/sc/orga/projects/zhangb03a/shared/Mayo/RNASeq/Reprocessing/normalization/Mayo.TCX.log2CPM.sc_RIN_sex_flowcell_Adj.tsv", data.table = F)
+row.names(expr_mayo_tcx) <- expr_mayo_tcx[[1]]
+fdata_mayo_tcx <- expr_mayo_tcx[, c(1, 2)]
+expr_mayo_tcx <- expr_mayo_tcx[, -c(1:6)]
+# Mayo CBE
+expr_mayo_cbe <- fread("/sc/orga/projects/zhangb03a/shared/Mayo/RNASeq/Reprocessing/normalization/Mayo.CBE.log2CPM.sc_RIN_sex_flowcell_Adj.tsv", data.table = F)
+row.names(expr_mayo_cbe) <- expr_mayo_cbe[[1]]
+fdata_mayo_cbe <- expr_mayo_cbe[, c(1, 2)]
+expr_mayo_cbe <- expr_mayo_cbe[, -c(1:6)]
+```
+
+
+Reading meta for brain regions
+```{r Reading meta for brain regions}
+#BM10
+meta_bm10 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.meta.BM_10.tsv", data.table = F)
+# adding row names
+rownames(meta_bm10) <- meta_bm10$Sampleid
+# adding severity column
+meta_bm10$severity <- ifelse(meta_bm10$CDR == 0.5, "MCI", ifelse(meta_bm10$CDR == 0, "NL", "Severe"))
+
+#BM22
+meta_bm22 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.meta.BM_22.tsv", data.table = F)
+# adding row names
+rownames(meta_bm22) <- meta_bm22$Sampleid
+# adding severity column
+meta_bm22$severity <- ifelse(meta_bm22$CDR == 0.5, "MCI", ifelse(meta_bm22$CDR == 0, "NL", "Severe"))
+
+#BM36
+meta_bm36 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.meta.BM_36.tsv", data.table = F)
+# adding row names
+rownames(meta_bm36) <- meta_bm36$Sampleid
+# adding severity column
+meta_bm36$severity <- ifelse(meta_bm36$CDR == 0.5, "MCI", ifelse(meta_bm36$CDR == 0, "NL", "Severe"))
+
+#BM44
+meta_bm44 <- fread("/sc/orga/projects/zhangb03a/shared/msbb-seq/Data/mixed_model_correction_updated/msbb.meta.BM_44.tsv", data.table = F)
+# adding row names
+rownames(meta_bm44) <- meta_bm44$Sampleid
+# adding severity column
+meta_bm44$severity <- ifelse(meta_bm44$CDR == 0.5, "MCI", ifelse(meta_bm44$CDR == 0, "NL", "Severe"))
+
+
+# adding severity column
+pData(expr_ros)$severity <- ifelse((pData(expr_ros)$cogdx == 2 | pData(expr_ros)$cogdx == 3), "MCI", ifelse(pData(expr_ros)$cogdx < 2, "NL", "Severe"))
+
+
+# Mayo TCX
+meta_mayo_tcx <- fread("/sc/orga/projects/zhangb03a/shared/Mayo/RNASeq/Reprocessing/normalization/Mayo.TCX.meta.tsv", data.table = F)
+meta_mayo_tcx$AgeAtDeath <- as.numeric(gsub("_or_above", "", meta_mayo_tcx$AgeAtDeath))
+colnames(meta_mayo_tcx)[7] <- "AOD"
+rownames(meta_mayo_tcx) <- meta_mayo_tcx$SampleID
+
+# Mayo CBE
+meta_mayo_cbe <- fread("/sc/orga/projects/zhangb03a/shared/Mayo/RNASeq/Reprocessing/normalization/Mayo.CBE.meta.tsv", data.table = F)
+meta_mayo_cbe$AgeAtDeath <- as.numeric(gsub("_or_above", "", meta_mayo_cbe$AgeAtDeath))
+colnames(meta_mayo_cbe)[7] <- "AOD"
+rownames(meta_mayo_cbe) <- meta_mayo_cbe$SampleID
+```
+
+
+Making expressionset for MSBB data
+```{r Making expressionset for MSBB data}
+# Checking if sample orders are same between expr and meta
+annot_ls <- list(fdata_bm10, fdata_bm22, fdata_bm36, fdata_bm44, fdata_mayo_tcx, fdata_mayo_cbe)
+meta_ls <- list(meta_bm10, meta_bm22, meta_bm36, meta_bm44, meta_mayo_tcx, meta_mayo_cbe)
+expr_ls <- list(expr_bm10, expr_bm22, expr_bm36, expr_bm44, expr_mayo_tcx, expr_mayo_cbe)
+expr_ls <- lapply(expr_ls, as.matrix)
+mapply(function(x, y) identical(rownames(x), colnames(y)), meta_ls, expr_ls)
+
+# making expressionset
+pheno_msbb_mayo <- lapply(meta_ls, function(x) new("AnnotatedDataFrame", data = x))
+
+feature_msbb_mayo <- lapply(annot_ls, function(x) new("AnnotatedDataFrame", data = x))
+
+exprset_msbb_mayo <- mapply(function(x, y, z) ExpressionSet(assayData = x, phenoData = y, featureData = z), expr_ls, pheno_msbb_mayo, feature_msbb_mayo, SIMPLIFY = F)
+
+# putting all expressionset in one list
+exprset_all <- c(exprset_msbb_mayo, expr_ros)
+```
+
+
+Writing results
+```{r Writing results}
+invisible(mapply(saveRDS, exprset_all, paste0("/sc/orga/projects/zhangb03a/lei_guo/Expressionset_MSBB_ROSMAP_Mayo/Expressionset/", c("Exprset.BM_10.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.RDS", "Exprset.BM_22.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.RDS", "Exprset.BM_36.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.RDS", "Exprset.BM_44.PMI_race_sex_RIN_exonicRate_rRnaRate_batch_adj.RDS", "Exprset.Mayo.TCX.log2CPM.sc_RIN_sex_flowcell_Adj.RDS", "Exprset.Mayo.CBE.log2CPM.sc_RIN_sex_flowcell_Adj.RDS", "Exprset.ROSMAP_log2FPKM.batch_pmi_msex_RIN_adj.no_outliers.symbol_clean.RDS"))))
+```
+
